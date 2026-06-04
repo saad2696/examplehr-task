@@ -1,5 +1,5 @@
 {
-  "extends": "@repo/config/tsconfig/react-library.json",
+  "extends": "../config/tsconfig/react-library.json",
   "compilerOptions": {
     "noEmit": true
   },
