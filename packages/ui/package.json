@@ -17,16 +17,18 @@
   },
   "dependencies": {
     "@repo/contracts": "workspace:*",
-    "@repo/data-layer": "workspace:*"
+    "@repo/data-layer": "workspace:*",
+    "@tanstack/react-query": "^5.101.0",
+    "zod": "^3.25.76"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@repo/config": "workspace:*",
     "@repo/testing": "workspace:*",
-    "@eslint/js": "^9.0.0",
     "@storybook/addon-essentials": "^8.6.0",
     "@storybook/react": "^8.6.0",
     "@storybook/react-vite": "^8.6.0",
