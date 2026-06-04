@@ -1,3 +1,4 @@
+import { expect, within } from "@storybook/test";
 import type { Meta, StoryObj } from "@storybook/react";
 import { BalanceCard } from "./BalanceCard";
 
@@ -30,8 +31,13 @@ export const Normal: Story = {
 export const Loading: Story = {
   name: "loading",
   args: { balance: baseBalance, pendingHold: 0, isStale: false, isLoading: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId("balance-card-loading")).toBeInTheDocument();
+  },
 };
 
+// ✅ stale — play asserts stale badge is visible
 export const Stale: Story = {
   name: "stale",
   args: {
@@ -39,8 +45,14 @@ export const Stale: Story = {
     pendingHold: 0,
     isStale: true,
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId("stale-badge")).toBeInTheDocument();
+    await expect(canvas.getByTestId("stale-badge")).toHaveTextContent("stale");
+  },
 };
 
+// ✅ optimistic-pending — play asserts pendingHold overlay is shown
 export const OptimisticPending: Story = {
   name: "optimistic-pending",
   args: {
@@ -48,14 +60,29 @@ export const OptimisticPending: Story = {
     pendingHold: 3,
     isStale: false,
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId("pending-hold")).toBeInTheDocument();
+    await expect(canvas.getByTestId("pending-hold")).toHaveTextContent("3 days pending");
+    // Effective available = 10 - 3 = 7
+    await expect(canvas.getByTestId("available-days")).toHaveTextContent("7");
+  },
 };
 
+// ✅ optimistic-rolled-back — play asserts NO pending hold after rollback
 export const OptimisticRolledBack: Story = {
   name: "optimistic-rolled-back — zero hold after rollback",
   args: {
     balance: baseBalance,
     pendingHold: 0,
     isStale: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // No pending-hold element — the overlay was rolled back
+    await expect(canvas.queryByTestId("pending-hold")).not.toBeInTheDocument();
+    // Full available is restored
+    await expect(canvas.getByTestId("available-days")).toHaveTextContent("10");
   },
 };
 
