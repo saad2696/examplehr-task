@@ -36,6 +36,83 @@ describe("useBalance", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
 
+  // IT-6: silent drift — anniversary bonus fires externally, invalidate flushes stale cache
+  it("IT-6: anniversary trigger + invalidate delivers fresh value, no stale lingering", async () => {
+    hcmStore.setBalance("driftEmp", "driftLoc", 20, "PTO");
+
+    // Hydrate corpus so the balance is in cache (version N)
+    const { result: corpusResult } = renderHook(() => useCorpus(), {
+      wrapper: TestQueryWrapper,
+    });
+    await waitFor(() => expect(corpusResult.current.isSuccess).toBe(true));
+
+    const cached = testQueryClient.getQueryData(
+      QUERY_KEYS.balance("driftEmp", "driftLoc", "PTO"),
+    ) as { available: number } | undefined;
+    expect(cached?.available).toBe(20);
+
+    // Anniversary bonus fires underneath (external mutation)
+    hcmStore.triggerAnniversary("driftEmp", "driftLoc", "PTO", 5); // now 25
+
+    // Reconciliation / refocus fires: invalidate the cell
+    await act(async () => {
+      await testQueryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.balance("driftEmp", "driftLoc", "PTO"),
+      });
+    });
+
+    // Mount useBalance — invalidation forces a fresh fetch
+    const { result } = renderHook(
+      () => useBalance("driftEmp", "driftLoc", "PTO"),
+      { wrapper: TestQueryWrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.isFetching).toBe(false);
+      expect(result.current.data?.available).toBe(25); // bonus reflected
+    });
+
+    // Stale value (20) must not linger
+    expect(result.current.data?.available).not.toBe(20);
+  });
+
+  // IT-8: slow/silent HCM — latency fault exposes loading state; cache stays usable
+  it("IT-8: latency fault → hook exposes loading state, resolves without crash", async () => {
+    // Pre-seed a second cell so we can verify the rest of the cache stays usable
+    hcmStore.setBalance("fastEmp", "fastLoc", 8, "SICK");
+    testQueryClient.setQueryData(QUERY_KEYS.balance("fastEmp", "fastLoc", "SICK"), {
+      employeeId: "fastEmp", locationId: "fastLoc", policy: "SICK",
+      available: 8, asOf: new Date().toISOString(), version: 1,
+    });
+
+    hcmStore.setBalance("slowEmp", "slowLoc", 12, "PTO");
+    hcmStore.setFault("slowEmp:slowLoc:PTO", "latency"); // 500 ms added
+
+    const { result } = renderHook(
+      () => useBalance("slowEmp", "slowLoc", "PTO"),
+      { wrapper: TestQueryWrapper },
+    );
+
+    // Immediately in loading state — no crash, no stale data yet
+    expect(result.current.isLoading).toBe(true);
+
+    // Eventually resolves with correct value
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data?.available).toBe(12);
+      },
+      { timeout: 3000 },
+    );
+
+    // Unrelated cached cell untouched during the slow fetch
+    const fastCached = testQueryClient.getQueryData<{ available: number }>(
+      QUERY_KEYS.balance("fastEmp", "fastLoc", "SICK"),
+    );
+    expect(fastCached?.available).toBe(8);
+  });
+
   // IT-10: surgically-invalidated cells refetch; untouched cells use corpus cache
   it("IT-10: invalidated cell refetches; untouched cell uses corpus-seeded cache", async () => {
     // Seed two cells

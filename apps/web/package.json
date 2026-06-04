@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint app",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@repo/contracts": "workspace:*",
@@ -26,10 +27,11 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.0.0",
-    "typescript-eslint": "^8.0.0",
     "jsdom": "^25.0.0",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
     "vitest": "^2.1.0"
   }
 }

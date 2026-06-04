@@ -7,5 +7,11 @@ export default defineConfig({
     environment: "jsdom",
     passWithNoTests: true,
     setupFiles: ["./src/setupTests.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/setupTests.ts", "src/test-utils.tsx"],
+    },
   },
 });

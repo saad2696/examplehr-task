@@ -6,5 +6,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     passWithNoTests: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      include: ["app/**/*.ts", "app/**/*.tsx"],
+      exclude: ["app/**/*.test.ts", "app/**/*.test.tsx"],
+    },
   },
 });
