@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "allowJs": true,
+    "noEmit": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2017"
+  },
+  "exclude": ["node_modules"]
+}

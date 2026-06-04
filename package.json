@@ -1,0 +1,23 @@
+{
+  "name": "examplehr-timeoff",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev --filter=@repo/web",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "coverage": "turbo coverage",
+    "storybook": "turbo storybook --filter=@repo/ui",
+    "build-storybook": "turbo build-storybook",
+    "test-storybook": "turbo test-storybook",
+    "test:all": "turbo test:all"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
