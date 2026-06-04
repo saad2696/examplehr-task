@@ -4,6 +4,8 @@ A frontend for requesting and approving time off, where the **balances are owned
 
 > This README is the **practical guide**: how to run it, how to test it, and what's actually in the app. The *why* behind every decision is in the **[Technical Requirements Document → `docs/TRD.md`](./docs/TRD.md)**. The full spec is in [`ExampleHR-TimeOff-Frontend-BRIEF.md`](./ExampleHR-TimeOff-Frontend-BRIEF.md); build conventions are in [`CLAUDE.md`](./CLAUDE.md).
 
+> **🔴 Live Storybook (the state matrix):** **https://examplehr-task-web.vercel.app** — every UI state and failure mode, deployed from `main` on Vercel.
+
 ---
 
 ## Quick start

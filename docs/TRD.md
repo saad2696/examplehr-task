@@ -3,6 +3,7 @@
 **Author:** Saad Ahmed
 **Status:** Proposed
 **Scope:** Frontend, data layer, mock HCM harness, and test strategy for the ExampleHR time-off module.
+**Live Storybook:** https://examplehr-task-web.vercel.app — the deployed state matrix (every UI state + failure mode).
 
 ---
 
@@ -355,7 +356,7 @@ pnpm test:all                                   # the full gate: typecheck → l
 The one piece of setup that makes integration tests reliable is the per-package `setupTests.ts` that boots MSW with `onUnhandledRequest: 'error'`, resets handlers and `hcmStore.clearFaults()` after each test, and isolates the query cache — so a stray real request fails loudly and fault state never leaks between tests.
 
 ### 10.2 Live / deployed environment
-On Vercel, the same Next.js app deploys with the `/api/hcm/*` **route handlers** running as serverless functions. The data flow is identical to local — client → TanStack Query → route handler (Zod-validated) → `HcmStore` — but now served remotely with real latency, and the anniversary bonus can run on its optional timer so reviewers can watch a balance refresh underneath an open session. Storybook deploys separately (Chromatic or a static Vercel deployment) as the browsable proof of every UI state. CI runs the full `test:all` gate on every push and uploads the coverage report as the submission's proof of coverage.
+On Vercel, the same Next.js app deploys with the `/api/hcm/*` **route handlers** running as serverless functions. The data flow is identical to local — client → TanStack Query → route handler (Zod-validated) → `HcmStore` — but now served remotely with real latency, and the anniversary bonus can run on its optional timer so reviewers can watch a balance refresh underneath an open session. Storybook deploys separately to **Vercel** (static `pnpm build-storybook` output, configured via `vercel.json`) and is **live at https://examplehr-task-web.vercel.app** as the browsable proof of every UI state. CI runs the full `test:all` gate on every push and uploads the coverage report as the submission's proof of coverage.
 
 The deliberate difference between local and live is only the *runtime and timing*: locally everything is in-process and faults are toggled deterministically; on live the route handlers run remotely and faults can fire probabilistically to feel like a real, occasionally-misbehaving HCM. The behavior contract — defined once in `HcmStore` — is the same in both.
 
