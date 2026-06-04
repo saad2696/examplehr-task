@@ -32,6 +32,28 @@ describe("useCorpus", () => {
     expect((cached as { available: number }).available).toBe(20);
   });
 
+  it("does NOT downgrade a fresher per-cell read with a stale corpus value", async () => {
+    hcmStore.setBalance("e3", "l3", 10, "PTO");
+
+    testQueryClient.setQueryData(QUERY_KEYS.balance("e3", "l3", "PTO"), {
+      employeeId: "e3",
+      locationId: "l3",
+      policy: "PTO",
+      available: 8,
+      asOf: new Date().toISOString(),
+      version: 2,
+    });
+
+    const { result } = renderHook(() => useCorpus(), { wrapper: TestQueryWrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const cached = testQueryClient.getQueryData<{ available: number; version: number }>(
+      QUERY_KEYS.balance("e3", "l3", "PTO"),
+    );
+    expect(cached?.available).toBe(8);
+    expect(cached?.version).toBe(2);
+  });
+
   it("parses the response with Zod — rejects a malformed response", async () => {
     // seed a valid balance but monkey-patch fetch to return a bad shape
     const { http, HttpResponse } = await import("msw");

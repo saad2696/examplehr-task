@@ -1,11 +1,24 @@
 import React from "react";
 import { PendingRequestList } from "./PendingRequestList";
+import { AnniversaryConsole } from "./AnniversaryConsole";
 
-export function ManagerView() {
+export interface ManagerViewProps {
+  employeeNames?: Record<string, string>;
+}
+
+export function ManagerView({ employeeNames }: ManagerViewProps) {
   return (
     <div style={styles.container}>
-      <h2 style={styles.heading}>Pending Requests</h2>
-      <PendingRequestList />
+      <section>
+        <AnniversaryConsole employeeNames={employeeNames} />
+      </section>
+
+      <hr style={styles.divider} />
+
+      <section>
+        <h2 style={styles.heading}>Pending Requests</h2>
+        <PendingRequestList />
+      </section>
     </div>
   );
 }
@@ -23,6 +36,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 20,
     fontWeight: 700,
     color: "#111827",
-    margin: 0,
+    margin: "0 0 16px",
+  },
+  divider: {
+    border: "none",
+    borderTop: "1px solid #e5e7eb",
+    margin: "8px 0",
+    width: "100%",
   },
 };

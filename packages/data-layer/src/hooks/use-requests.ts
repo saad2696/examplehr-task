@@ -6,7 +6,8 @@ export function useRequests() {
   return useQuery({
     queryKey: QUERY_KEYS.requests(),
     queryFn: () => requestStore.getAll(),
-    staleTime: Infinity,
+    // staleTime: 0 (default) — always refetch on mount so newly submitted requests
+    // appear in the manager view even when submitted from a different tab/view.
   });
 }
 

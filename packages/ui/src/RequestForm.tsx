@@ -9,6 +9,12 @@ export interface RequestFormProps {
   effectiveAvailable: number;
 }
 
+function policyLabel(policy: string): string {
+  if (policy === "PTO") return "Vacation (PTO)";
+  if (policy === "SICK") return "Sick leave";
+  return policy;
+}
+
 const FormSchema = z.object({
   days: z
     .number({ invalid_type_error: "Enter a number of days" })
@@ -53,7 +59,7 @@ export function RequestForm({ employeeId, locationId, policy, effectiveAvailable
     <form onSubmit={handleSubmit} style={styles.form} data-testid="request-form">
       <div style={styles.field}>
         <label style={styles.label} htmlFor="days-input">
-          {policy} days to request
+          {policyLabel(policy)} days to request
         </label>
         <input
           id="days-input"

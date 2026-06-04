@@ -23,17 +23,20 @@ function withManagerSetup(requests: TimeOffRequest[]) {
   return (Story: React.ComponentType) => {
     requestStore.reset();
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    for (const r of requests) {
+    const corpus = requests.map((r) => ({
+      employeeId: r.employeeId,
+      locationId: r.locationId,
+      policy: r.policy,
+      available: 10,
+      asOf: now,
+      version: 1,
+    }));
+    for (let i = 0; i < requests.length; i++) {
+      const r = requests[i]!;
       requestStore.add(r);
-      qc.setQueryData(QUERY_KEYS.balance(r.employeeId, r.locationId, r.policy), {
-        employeeId: r.employeeId,
-        locationId: r.locationId,
-        policy: r.policy,
-        available: 10,
-        asOf: now,
-        version: 1,
-      });
+      qc.setQueryData(QUERY_KEYS.balance(r.employeeId, r.locationId, r.policy), corpus[i]);
     }
+    qc.setQueryData(QUERY_KEYS.corpus(), corpus);
     void qc.prefetchQuery({ queryKey: QUERY_KEYS.requests(), queryFn: () => requestStore.getAll() });
     return React.createElement(QueryClientProvider, { client: qc }, React.createElement(Story));
   };

@@ -5,9 +5,11 @@ import { RequestReviewCard } from "./RequestReviewCard";
 export function PendingRequestList() {
   const { data: requests, isLoading } = useRequests();
 
-  const actionable = (requests ?? []).filter(
-    (r) => r.status === "PENDING" || r.status === "APPROVING" || r.status === "NEEDS_ATTENTION",
-  );
+  const actionable = (requests ?? [])
+    .filter(
+      (r) => r.status === "PENDING" || r.status === "APPROVING" || r.status === "NEEDS_ATTENTION",
+    )
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 
   if (isLoading) {
     return (

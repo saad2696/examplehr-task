@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { BalanceSchema } from "@repo/contracts";
+import { BalanceSchema, type Balance } from "@repo/contracts";
 import { QUERY_KEYS } from "../query-keys";
 import { getOrigin } from "../origin";
 
@@ -23,10 +23,10 @@ export function useCorpus() {
   useEffect(() => {
     if (!query.data) return;
     for (const balance of query.data) {
-      queryClient.setQueryData(
-        QUERY_KEYS.balance(balance.employeeId, balance.locationId, balance.policy),
-        balance,
-      );
+      const key = QUERY_KEYS.balance(balance.employeeId, balance.locationId, balance.policy);
+      const existing = queryClient.getQueryData<Balance>(key);
+      if (existing && existing.version > balance.version) continue;
+      queryClient.setQueryData(key, balance);
     }
   }, [query.data, queryClient]);
 

@@ -8,5 +8,7 @@ export { useRequests } from "./hooks/use-requests";
 export { useSubmitRequest } from "./hooks/use-submit-request";
 export { useDecideRequest } from "./hooks/use-decide-request";
 export { useDecisionContext } from "./hooks/use-decision-context";
+export { useTriggerAnniversary } from "./hooks/use-trigger-anniversary";
 export type { SubmitVariables } from "./hooks/use-submit-request";
 export type { DecideVariables } from "./hooks/use-decide-request";
+export type { TriggerAnniversaryVariables } from "./hooks/use-trigger-anniversary";

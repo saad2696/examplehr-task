@@ -7,7 +7,7 @@ describe("isBalanceStale", () => {
   it("returns false when asOf is recent", () => {
     const now = Date.now();
     vi.setSystemTime(now);
-    const asOf = new Date(now - 60_000).toISOString(); // 1 min ago
+    const asOf = new Date(now - STALE_THRESHOLD_MS / 2).toISOString();
     expect(isBalanceStale(asOf)).toBe(false);
   });
 

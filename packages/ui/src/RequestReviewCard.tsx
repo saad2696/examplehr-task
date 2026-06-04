@@ -2,6 +2,7 @@ import React from "react";
 import type { TimeOffRequest } from "@repo/contracts";
 import { useDecisionContext, useDecideRequest } from "@repo/data-layer";
 import { ReconciliationBanner } from "./ReconciliationBanner";
+import { AnimatedNumber } from "./AnimatedNumber";
 
 export interface RequestReviewCardProps {
   request: TimeOffRequest;
@@ -71,8 +72,8 @@ export function RequestReviewCard({ request }: RequestReviewCardProps) {
         ) : (
           <span data-testid="decision-balance">
             {isFetching && <span style={styles.refreshing}> refreshing</span>}
-            <strong data-testid="balance-available">
-              {balance?.available ?? "—"} days available
+            <strong data-testid="balance-available" style={styles.balanceValue}>
+              {balance ? <AnimatedNumber value={balance.available} /> : "—"} days available
             </strong>
             {balance && (
               <span style={styles.balanceMeta}>
@@ -153,6 +154,7 @@ const styles: Record<string, React.CSSProperties> = {
   meta: { fontSize: 13, color: "#6b7280" },
   days: { fontSize: 14, fontWeight: 500, color: "#374151" },
   balanceRow: { fontSize: 14, color: "#374151" },
+  balanceValue: { transition: "color 0.4s ease" },
   balanceLoading: { color: "#9ca3af", fontStyle: "italic" },
   refreshing: { fontSize: 11, color: "#9ca3af", marginRight: 6 },
   balanceMeta: { fontSize: 12, color: "#9ca3af" },

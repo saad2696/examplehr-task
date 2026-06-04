@@ -1,5 +1,6 @@
 import React from "react";
 import type { Balance } from "@repo/contracts";
+import { AnimatedNumber } from "./AnimatedNumber";
 
 export interface BalanceCardProps {
   balance: Balance;
@@ -21,13 +22,13 @@ export function BalanceCard({ balance, pendingHold, isStale, isLoading, error }:
 
   if (error) {
     return (
-      <div style={{ ...styles.card, borderColor: "#f87171" }} data-testid="balance-card-error">
+      <div style={{ ...styles.card, border: "1px solid #f87171" }} data-testid="balance-card-error">
         <span style={{ color: "#ef4444" }}>Error loading balance: {error}</span>
       </div>
     );
   }
 
-  const effective = balance.available - pendingHold;
+  const effective = Math.max(0, balance.available - pendingHold);
 
   return (
     <div style={styles.card} data-testid="balance-card">
@@ -41,7 +42,7 @@ export function BalanceCard({ balance, pendingHold, isStale, isLoading, error }:
       </div>
 
       <div style={styles.available} data-testid="available-days">
-        {effective} <small style={styles.unit}>days available</small>
+        <AnimatedNumber value={effective} /> <small style={styles.unit}>days available</small>
       </div>
 
       {pendingHold > 0 && (
