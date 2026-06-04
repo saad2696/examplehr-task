@@ -1,4 +1,11 @@
 export { QUERY_KEYS } from "./query-keys";
 export { STALE_THRESHOLD_MS, isBalanceStale } from "./stale";
+export { requestStore } from "./request-store";
 export { useCorpus } from "./hooks/use-corpus";
 export { useBalance } from "./hooks/use-balance";
+export { usePendingHold } from "./hooks/use-pending-hold";
+export { useRequests } from "./hooks/use-requests";
+export { useSubmitRequest } from "./hooks/use-submit-request";
+export { useDecideRequest } from "./hooks/use-decide-request";
+export type { SubmitVariables } from "./hooks/use-submit-request";
+export type { DecideVariables } from "./hooks/use-decide-request";

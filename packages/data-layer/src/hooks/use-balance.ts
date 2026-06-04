@@ -2,10 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BalanceSchema } from "@repo/contracts";
 import { QUERY_KEYS } from "../query-keys";
 import { STALE_THRESHOLD_MS } from "../stale";
-
-function getOrigin() {
-  return typeof window !== "undefined" ? window.location.origin : "http://localhost";
-}
+import { getOrigin } from "../origin";
 
 export function useBalance(employeeId: string, locationId: string, policy: string) {
   return useQuery({

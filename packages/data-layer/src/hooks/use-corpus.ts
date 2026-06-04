@@ -3,12 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { BalanceSchema } from "@repo/contracts";
 import { QUERY_KEYS } from "../query-keys";
+import { getOrigin } from "../origin";
 
 const CorpusResponseSchema = z.array(BalanceSchema);
-
-function getOrigin() {
-  return typeof window !== "undefined" ? window.location.origin : "http://localhost";
-}
 
 export function useCorpus() {
   const queryClient = useQueryClient();
