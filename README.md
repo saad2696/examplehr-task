@@ -2,25 +2,20 @@
 
 A frontend for requesting and approving time off, where the **balances are owned by an external HCM system** (Workday/SAP class) that ExampleHR doesn't control. The whole challenge is presenting those balances so they feel *instant and trustworthy* while staying honest that the numbers live somewhere else and can change — or be wrong — underneath us.
 
-> This README documents **how I reached the solution and the challenges I hit along the way**. The full engineering spec is in [`ExampleHR-TimeOff-Frontend-BRIEF.md`](./ExampleHR-TimeOff-Frontend-BRIEF.md); agent build conventions are in [`CLAUDE.md`](./CLAUDE.md); the decision record is in the TRD.
-
-<!-- FILL after deploy -->
-- **Live Storybook:** <!-- e.g. https://…chromatic.com -->
-- **Live app:** <!-- e.g. https://…vercel.app -->
-- **Repo:** <!-- github url -->
+> This README is the **practical guide**: how to run it, how to test it, and what's actually in the app. The *why* behind every decision is in the **[Technical Requirements Document → `docs/TRD.md`](./docs/TRD.md)**. The full spec is in [`ExampleHR-TimeOff-Frontend-BRIEF.md`](./ExampleHR-TimeOff-Frontend-BRIEF.md); build conventions are in [`CLAUDE.md`](./CLAUDE.md).
 
 ---
 
 ## Quick start
 
 ```bash
-pnpm install
-pnpm dev          # the Next.js app
-pnpm storybook    # the state matrix (the real proof of behavior)
-pnpm test         # unit + integration + interaction tests
+pnpm install        # bootstrap the workspace
+pnpm dev            # the Next.js app + the /api/hcm/* API (one process) → http://localhost:3000
 ```
 
-This is a **pnpm + Turborepo monorepo**. See [Architecture](#architecture) for the package layout.
+That's the whole thing — the UI **and** the mock HCM backend run from the single `pnpm dev` process. Open the app, and the demo data seeds automatically on first page render.
+
+> **Note on the port:** if `3000` is taken, Next picks the next free port (e.g. `3002`) and prints it — check the terminal for `Local: http://localhost:<port>`.
 
 ---
 
@@ -30,78 +25,127 @@ If an employee sees "10 days available" and requests 2, the UI must respond inst
 
 ---
 
-## How I reached the solution
+## What's in the app
 
-I worked backwards from that one hard rule — *never reverse a stated outcome* — and let it drive every other decision.
+Two tabs, three feature areas:
 
-**1. I separated "intent" from "outcome."** Showing a request as `PENDING` instantly is honest: it reflects what the user *did*, not a result HCM hasn't confirmed. So submission is optimistic. But *approval* triggers the real HCM write, and an outcome there can't be asserted until HCM confirms it. That split — optimistic about intent, pessimistic about outcome — is the spine of the design. (Brief §6.)
+### Employee View
+- **Who am I** — name header + avatar, with an **employee picker** dropdown to switch between Maya, Alex, and Jordan (and Maya's second location).
+- **Balances** — multi-row cards (PTO / Sick / per-location), each with a **stale badge**, a **pending-hold** overlay, and a smoothly **animated** available count.
+- **Request time off** — a **Vacation (PTO) / Sick Leave** tab selector; the form and balance math switch to the selected policy. Submitting is optimistic (instant `PENDING` + hold).
+- **Your requests** — the employee's own request list, newest first.
 
-**2. I stopped trusting `200 OK`.** Because HCM can silently lie, every state-changing write is immediately followed by an **authoritative per-cell re-read**. If the re-read contradicts the success response, the request drops to a recoverable `NEEDS_ATTENTION` state instead of silently flipping. This "verify, don't trust" loop is what makes the silent-wrong case survivable. (Brief §6, sequence diagram in §5.5.)
+### Manager View
+- **Anniversary / Bonus PTO** (top) — grant a bonus to any **PTO** cell; the employee's balance reconciles to the new total while pending holds are preserved. (Bonuses are PTO-only.)
+- **Pending requests** (below) — review cards, **newest first**, each doing a **fresh per-cell read at decision time**, with approve/deny, a `NEEDS_ATTENTION` recovery path, and a reconciliation banner.
 
-**3. I picked tools that model "source of truth lives elsewhere" natively.** TanStack Query gives stale-while-revalidate, background refetch, query invalidation, and optimistic mutations with rollback out of the box — so I'm not hand-rolling the hard parts. Zod validates *and value-checks* HCM responses at the boundary, which is the concrete mechanism behind "assume success can be wrong." (Brief §5.)
-
-**4. I made the optimistic update an overlay, not a cache mutation.** The single subtlest bug in this kind of app is a background refresh landing mid-action and wiping the user's optimistic state. Keeping the optimistic change as a snapshot applied in `onMutate` (and removed only on error), layered on top of server cache, means a refetch updates the base numbers underneath while the in-flight action stays intact. (Brief §7.)
-
-**5. I chose a monorepo for one specific reason.** The most important correctness property is *"the live app and the test harness must behave identically."* In a single package that's a hope; as a monorepo it's a build-enforced dependency edge — `apps/web` route handlers and the MSW test handlers both import the same `packages/hcm-mock`, so there is no second copy to drift. (Brief §5.6.)
+### Under the hood (the actual hard part)
+- Optimistic **overlay** for intent; **confirmed-write + verify** for outcome.
+- Every write is followed by an **authoritative per-cell re-read**; `200 OK` is never trusted.
+- Background refreshes and bonus grants reconcile **without clobbering** in-flight optimistic state or a fresher per-cell read.
 
 ---
 
-## Challenges faced (and how I handled each)
+## How to run — every command
 
-| Challenge | Why it's hard | How I solved it |
-|---|---|---|
-| **External mutation** (anniversary bonus / year-start refresh lands while the app is open) | The displayed balance changes from outside the app and can't be allowed to surprise the user mid-action | Periodic + on-refocus reconciliation from the batch corpus; optimistic changes kept as overlays so a refresh never clobbers an in-flight request; a non-blocking banner when a refresh materially changes a balance the user is acting on |
-| **Authoritative read vs. expensive batch read** | One cheap-but-narrow real-time cell read; one correct-but-expensive corpus read | Corpus only for hydration + slow periodic reconciliation; per-cell read for anything authoritative (decision-time, post-write verify). Codified the cadences in the cache strategy |
-| **Unreliable success (`200 OK` can be wrong)** | A success response may not reflect reality | Zod sanity-checks values (not just shape) at the boundary; every write is followed by a per-cell re-read; contradictions become recoverable `NEEDS_ATTENTION`, never silent reversals |
-| **"Approved → later denied" must never happen** | Two actors (employee submits, manager approves) and a write that can fail | Optimistic for intent (`PENDING`) but confirmed/guarded for outcome (`APPROVING → APPROVED` only after verify); rollback path is always to a recoverable state with a clear message |
-| **Multi-row balances (per-employee, per-location)** | A single employee has several independent cells | Query keys are per-cell (`['balance', employeeId, locationId]`); UI is multi-row aware; invalidation is surgical (one cell), corpus refresh is the wide net |
-| **Reconciling a background refresh with an in-flight action** | The classic optimistic-UI race | `onMutate` snapshot + overlay, base cache free to update from refetch, `onSettled` invalidate + re-read, `onError` rolls back the overlay only |
-| **Proving the states, not just the happy path** | Easy to demo success, hard to demo failure modes | Every meaningful state (loading, empty, stale, optimistic-pending, rolled-back, HCM-rejected, silently-wrong, refreshed-mid-session) is a Storybook story with faults pinned deterministically; the hard ones have interaction tests |
-| **Stack temptation: should the mock HCM use a real DB?** | A real DB feels "more realistic" | I deliberately kept the mock in-memory: Storybook can't reach Postgres anyway, faults need to be deterministic per scenario, and "single command to run" matters. (Reasoning recorded in the TRD.) <!-- update if Neon adapter was added --> |
+### Develop
+```bash
+pnpm dev            # Next.js app + API on :3000
+pnpm storybook      # the state matrix on :6006 (the real proof of behavior)
+pnpm lint           # eslint across the graph
+pnpm typecheck      # tsc --noEmit across the graph
+```
+
+### Test
+```bash
+pnpm test                                   # all packages (unit + integration + interaction) via Turborepo
+pnpm test --filter @repo/data-layer         # one package
+pnpm test --filter @repo/data-layer -- --run        # single run, no watch (CI mode)
+pnpm test -- --run -t "overlay survives"            # one test by name pattern
+pnpm coverage                               # coverage report across all packages → coverage/
+```
+
+**Storybook interaction tests** (the `play()` functions) run against a built/served Storybook:
+```bash
+pnpm build-storybook
+npx http-server storybook-static -p 6006 &
+pnpm test-storybook --url http://localhost:6006
+```
+
+**Everything in one go (the CI gate):**
+```bash
+pnpm test:all       # typecheck → lint → coverage → build-storybook → test-storybook
+```
+
+### Build
+```bash
+pnpm build          # builds all packages + the Next app
+```
+
+> Tip: don't run `pnpm build` while `pnpm dev` is live — the production build overwrites the dev server's `.next` chunks. Stop dev first, or `rm -rf apps/web/.next` and restart.
+
+---
+
+## Try the interesting flows
+
+1. **Optimistic submit** — Employee View → request 2 PTO days → the available count drops instantly and a `PENDING` request appears.
+2. **Approve with verify** — Manager View → approve it → the balance eases down to the confirmed value; no jerk, no false approval.
+3. **Sick leave** — Employee View → **Sick Leave** tab → submit → it shows up separately in the Manager queue.
+4. **Bonus mid-session** — Manager View → grant a bonus to Maya's PTO → switch to Employee View → the balance reconciles to the new total, pending hold intact.
+5. **Switch employee** — Employee View → use the dropdown → Alex has **zero** leaves (the empty/zero state).
 
 ---
 
 ## Architecture
 
-Monorepo (pnpm workspaces + Turborepo). Full diagrams in the [brief §5.5–§5.6](./ExampleHR-TimeOff-Frontend-BRIEF.md).
+Monorepo (pnpm workspaces + Turborepo). Full diagrams and the dependency-direction reasoning are in the **[TRD §5](./docs/TRD.md)**.
 
 ```text
 apps/
-  web/                # Next.js App Router: employee + manager views, /api/hcm/* route handlers
+  web/                    # Next.js App Router: employee + manager views
+    app/api/hcm/*         #   route handlers: balance, corpus, fault, trigger/anniversary
+    app/providers.tsx     #   QueryClient + demo request seed
+    lib/                  #   demo-seed (balances) + directory (names/roster)
 packages/
-  contracts/          # Zod schemas + inferred types — the single contract source
-  hcm-mock/           # HcmStore core + fault injection — imported by BOTH web and testing
-  data-layer/         # TanStack Query hooks: optimistic + verify + reconcile
-  ui/                 # presentational components + Storybook stories (the state matrix)
-  testing/            # MSW handlers (wrap hcm-mock) + fixtures + test utils
-  config/             # shared tsconfig / eslint / vitest
+  contracts/              # Zod schemas + inferred types — the single contract source
+  hcm-mock/               # HcmStore core + fault injection — imported by BOTH web and testing
+  data-layer/             # TanStack Query hooks: corpus, balance, submit, decide, trigger…
+  ui/                     # presentational components + Storybook stories (the state matrix)
+  testing/                # MSW handlers (wrap hcm-mock) + fixtures + test utils
+  config/                 # shared tsconfig / eslint / vitest
 ```
 
-Key boundary: `ui` and `data-layer` reach HCM **only over the network** (`fetch /api/hcm/*`); only `apps/web` and `packages/testing` import `hcm-mock` — which keeps the "truth is remote" boundary honest in the code structure itself.
+**Key boundary:** `ui` and `data-layer` reach HCM **only over the network** (`fetch /api/hcm/*`); only `apps/web` and `packages/testing` import `hcm-mock` — and they import the *same* one, so the live app and the test harness can't drift.
+
+### Data-layer hooks
+`useCorpus` (bulk hydration, version-guarded) · `useBalance` (authoritative per-cell) · `usePendingHold` (optimistic overlay) · `useRequests` · `useSubmitRequest` · `useDecideRequest` (write → verify → reconcile) · `useDecisionContext` (fresh-on-mount) · `useTriggerAnniversary` (bonus grant).
 
 ---
 
 ## Testing approach
 
-Each test type guards a deliberately different class of regression (defended in the TRD):
+Each test type guards a deliberately different class of regression (defended in the **[TRD §9](./docs/TRD.md)**):
 
-- **Integration tests (highest value)** — data layer through real hooks against MSW + `hcm-mock`. Guard the reconciliation/optimistic logic: silent-wrong caught by verify, rollback on insufficient balance, version conflicts, and the mid-flight-refresh race.
+- **Integration tests (highest value)** — data layer through real hooks against MSW + `hcm-mock`. Guard reconciliation/optimistic logic: silent-wrong caught by verify, rollback on insufficient balance, version conflicts, the mid-flight-refresh race, and the corpus-no-downgrade guard.
 - **Storybook interaction tests** — guard user-visible state transitions for every row of the state matrix.
-- **Unit tests** — pure logic in isolation: balance math, staleness derivation, the request-status reducer.
+- **Unit tests** — pure logic in isolation: balance math, staleness derivation.
 - **Types** — Zod-derived; the cheapest guard; CI fails on `tsc`.
 
-<!-- FILL after build -->
-- **Coverage:** <!-- e.g. 92% lines, link to report -->
-- **State matrix:** <!-- link to deployed Storybook -->
+Current suite: **all green** — contracts (29), hcm-mock (30), testing (13), data-layer (25), web routes (13), plus the Storybook play tests.
 
 ---
 
-## Trade-offs & what I'd do with more time
+## Decisions made (full record in the TRD)
 
-- **Monorepo overhead** is real for a project this size; I took it on specifically to enforce the shared-mock boundary. For a true single-team production app I'd weigh it against a single package with strict lint rules.
-- **Manager-approval pattern** (confirmed-write vs optimistic-with-guard) is a genuine fork; the TRD records which I chose and why. <!-- state the choice -->
-- **Request entities** are modeled as <!-- client state / mock ExampleHR backend --> — a fuller build would give them their own persistence.
-- **Next:** richer reconciliation telemetry, real-time push from HCM (vs polling), and per-policy balance rules.
+| Decision | Choice | Where |
+|---|---|---|
+| Server state | **TanStack Query**, not Redux (truth lives in HCM, not in a store we reduce) | [TRD §6.1](./docs/TRD.md) |
+| Boundary validation | **Zod** — value-checks untrusted `200 OK`, one source for runtime + types | [TRD §6.2](./docs/TRD.md) |
+| Live API transport | **Next.js route handlers + Zod** over one `hcm-mock`; **MSW** as the test transport | [TRD §6.2](./docs/TRD.md) |
+| Manager approval | **Confirmed-write + verify** (never optimistic about an outcome) | [TRD §4](./docs/TRD.md) |
+| Request entities | **Client state** today (per-window); shared server store on the roadmap | [TRD §11](./docs/TRD.md) |
+| `staleTime` | **30s** (tuned down to test reconciliation; production tunes up + adds push) | [TRD §10](./docs/TRD.md) |
+| Mock persistence | **In-memory**, deliberately (deterministic faults, single-command run) | [TRD §11](./docs/TRD.md) |
 
 ---
 
@@ -109,7 +153,7 @@ Each test type guards a deliberately different class of regression (defended in 
 
 | File | Purpose |
 |---|---|
+| `docs/TRD.md` | **Technical Requirements Document** — decisions, architecture, diagrams, local-vs-live |
 | `ExampleHR-TimeOff-Frontend-BRIEF.md` | Full engineering spec / requirements |
 | `CLAUDE.md` | Agent build conventions, guardrails, git workflow |
-| `docs/TRD.md` | Decision record: optimistic-vs-pessimistic, cache strategy, alternatives <!-- create --> |
-| `README.md` | This file — solution narrative + challenges |
+| `README.md` | This file — how to run, test, and what's in the app |
